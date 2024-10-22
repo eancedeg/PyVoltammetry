@@ -2,6 +2,9 @@ from datetime import datetime
 import pandas as pd
 import argparse
 import os
+import numpy as np
+from scipy.signal import savgol_filter
+import matplotlib.pyplot as plt
 
 
 class Voltammogram(object):
@@ -71,6 +74,27 @@ class Voltammogram(object):
                 cycles.append(cycledata)
         return cycles
 
+    def smooth_data(self, cycle_number, window_length=5, polyorder=2):
+        """
+        :param cycle_number: Select nth cycle for smoothing.
+        :param window_length: Longitud de la ventana de suavisado. Debe ser un número impar
+        :param polyorder: Orden del polinomio utilizado para el ajuste.
+        :return: Un DataFrame con los datos suavizados.
+        """
+
+        try:
+            if window_length % 2 == 0 or window_length <= 1:
+                raise ValueError('window_length debe ser un número impar mayor que 1.')
+            selected_cycle = self.get_cycles()[cycle_number]
+
+            # Aplicar el filtro de Savitzky-Golay
+            smooth_current = savgol_filter(selected_cycle['Current'], window_length, polyorder)
+            selected_cycle.loc[:, 'Smoothed Current'] = smooth_current
+            return selected_cycle
+        except Exception as e:
+            print(f'Error smoothing data: {e}')
+            return None
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Extract voltammetry cycles')
@@ -82,6 +106,12 @@ if __name__ == '__main__':
     nth = args.nth
 
     v = Voltammogram(file)
-    cycle = v.get_cycles()[nth]
-    basename = os.path.splitext(os.path.split(file)[1])[0]
-    cycle.to_csv(f'{basename}_origin.csv', index=None)
+    smoothed = v.smooth_data(-1, window_length=15)
+    print(smoothed)
+    plt.plot(smoothed['Potential'], smoothed['Smoothed Current'])
+    plt.xlabel('Potential (V)')
+    plt.ylabel('Current (A)')
+    plt.show()
+    # cycle = v.get_cycles()[nth]
+    # basename = os.path.splitext(os.path.split(file)[1])[0]
+    # cycle.to_csv(f'{basename}_origin.csv', index=None)
