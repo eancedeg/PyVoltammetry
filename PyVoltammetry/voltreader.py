@@ -1,10 +1,9 @@
 from datetime import datetime
 import pandas as pd
 import argparse
-import os
-import numpy as np
 from scipy.signal import savgol_filter
 import matplotlib.pyplot as plt
+pd.options.mode.chained_assignment = None
 
 
 class Voltammogram(object):
@@ -54,27 +53,41 @@ class Voltammogram(object):
 
     def get_cycles(self):
         cycles = []
-        index_df = self.voltdata[self.voltdata['Potential'] == self.lowvolt]
 
-        if self.initvolt == self.lowvolt:
-            index_df = index_df.drop(0)
+        if self.scandir == 'N':
+            index_df = self.voltdata[self.voltdata['Potential'] == self.initvolt]
+            numcycles = len(index_df)
+            indexes = index_df.index
+            for i in range(numcycles):
+                if i < numcycles - 1:
+                    cycledata = self.voltdata.iloc[indexes[i]:indexes[i + 1], :]
+                    cycles.append(cycledata)
+                else:
+                    cycledata = self.voltdata.iloc[indexes[i]:, :]
+                    cycles.append(cycledata)
+            return cycles
+        else:
+            index_df = self.voltdata[self.voltdata['Potential'] == self.lowvolt]
 
-        indexes = index_df.index
-        numcycles = len(indexes.tolist()) + 1
+            if self.initvolt == self.lowvolt:
+                index_df = index_df.drop(0)
 
-        for i in range(numcycles):
-            if i == 0:
-                cycledata = self.voltdata.iloc[:indexes[i], :]
-                cycles.append(cycledata)
-            elif i == numcycles - 1:
-                cycledata = self.voltdata.iloc[indexes[i - 1]:, :]
-                cycles.append(cycledata)
-            else:
-                cycledata = self.voltdata.iloc[indexes[i - 1]: indexes[i], :]
-                cycles.append(cycledata)
-        return cycles
+            indexes = index_df.index
+            numcycles = len(indexes.tolist()) + 1
 
-    def smooth_data(self, cycle_number, window_length=5, polyorder=2):
+            for i in range(numcycles):
+                if i == 0:
+                    cycledata = self.voltdata.iloc[:indexes[i], :]
+                    cycles.append(cycledata)
+                elif i == numcycles - 1:
+                    cycledata = self.voltdata.iloc[indexes[i - 1]:, :]
+                    cycles.append(cycledata)
+                else:
+                    cycledata = self.voltdata.iloc[indexes[i - 1]: indexes[i], :]
+                    cycles.append(cycledata)
+            return cycles
+
+    def smooth_data(self, cycle_number: int, window_length: int=7, polyorder: int=2) -> pd.DataFrame:
         """
         :param cycle_number: Select nth cycle for smoothing.
         :param window_length: Longitud de la ventana de suavisado. Debe ser un número impar
@@ -97,16 +110,16 @@ class Voltammogram(object):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Extract voltammetry cycles')
-    parser.add_argument('file', type=str, help='Path to voltammetry file')
-    parser.add_argument('--nth', default=-1, type=int, help='Number of cycle to extract')
-    args = parser.parse_args()
+    # parser = argparse.ArgumentParser(description='Extract voltammetry cycles')
+    # parser.add_argument('file', type=str, help='Path to voltammetry file')
+    # parser.add_argument('--nth', default=-1, type=int, help='Number of cycle to extract')
+    # args = parser.parse_args()
+    #
+    # file = args.file
+    # nth = args.nth
 
-    file = args.file
-    nth = args.nth
-
-    v = Voltammogram(file)
-    smoothed = v.smooth_data(-1, window_length=15)
+    v = Voltammogram('cv l1(-400a125) 200 mvs.txt')
+    smoothed = v.smooth_data(1, window_length=7, polyorder=2)
     print(smoothed)
     plt.plot(smoothed['Potential'], smoothed['Smoothed Current'])
     plt.xlabel('Potential (V)')
