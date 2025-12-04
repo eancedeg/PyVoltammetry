@@ -1,6 +1,6 @@
 from datetime import datetime
 import pandas as pd
-import argparse
+import re
 from scipy.signal import savgol_filter
 import matplotlib.pyplot as plt
 pd.options.mode.chained_assignment = None
@@ -21,7 +21,11 @@ class Voltammogram(object):
                 if header:
                     # Date
                     line = volt.readline().strip()
-                    self.date = datetime.strptime(line, '%b. %d, %Y   %H:%M:%S')
+                    date = re.match(r'(\w{3})[\w.]?\s+(\d{1,2}),\s+(\d{4})\s+(\d{2}):(\d{2}):(\d{2})', line)
+                    datetuple = date.groups()
+                    datestr = (f'{datetuple[0]}. {datetuple[1]}, {datetuple[2]}   '
+                               f'{datetuple[3]}:{datetuple[4]}:{datetuple[5]}')
+                    self.date = datetime.strptime(datestr, '%b. %d, %Y   %H:%M:%S')
 
                     # Technique
                     self.technique = volt.readline().strip()
